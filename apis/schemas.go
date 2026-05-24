@@ -270,3 +270,43 @@ type DecryptedUserEmailResponse struct {
 	UserEmail     string   `json:"user_email" validate:"required,email"`
 	IdentityNames []string `json:"identity_names"`
 }
+
+/* openclaw */
+
+type CreateOpenclawRequest struct {
+	Name string `json:"name" validate:"required,min=1,max=64"`
+}
+
+type CreateOpenclawResponse struct {
+	ID           int    `json:"id"`
+	Name         string    `json:"name"`
+	UserID       int       `json:"user_id"`
+	AccessToken  string    `json:"access_token"`
+	RefreshToken string    `json:"refresh_token"`
+	Message      string    `json:"message"`
+}
+
+type OpenclawResponse struct {
+	ID        int    `json:"id"`
+	Name      string `json:"name"`
+	UserID    int    `json:"user_id"`
+	CreatedAt string `json:"created_at"`
+}
+
+type ListOpenclawResponse struct {
+	Openclaws []OpenclawResponse `json:"openclaws"`
+}
+
+/* validate */
+
+type ValidateUserResponse struct {
+	UserID int `json:"user_id"`
+}
+
+type ValidateOpenclawResponse struct {
+	ID         int    `json:"id"`
+	OpenclawID int    `json:"openclaw_id"`
+	UserID     int    `json:"user_id"`
+	Type       string `json:"type"`
+	Name       string `json:"name"`
+}

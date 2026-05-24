@@ -189,3 +189,131 @@ func GetJwtSecret(userID int) (key, secret string, err error) {
 	}
 	return jwtCredential.Key, jwtCredential.Secret, nil
 }
+
+// Openclaw Kong functions
+
+func openclawConsumer(ocID int) string {
+	return fmt.Sprintf("oc_%d", ocID)
+}
+
+func GetJwtSecretForOpenclaw(ocID int) (key, secret string, err error) {
+	consumer := openclawConsumer(ocID)
+	jwtCredential, err := getJwtCredentialForConsumer(consumer)
+	if err != nil {
+		return "", "", err
+	}
+	return jwtCredential.Key, jwtCredential.Secret, nil
+}
+
+func getJwtCredentialForConsumer(consumer string) (*JwtCredential, error) {
+	jwtCredentials, _ := listJwtCredentialsForConsumer(consumer)
+	if len(jwtCredentials) == 0 {
+		return createJwtCredentialForConsumer(consumer)
+	}
+	return jwtCredentials[0], nil
+}
+
+func listJwtCredentialsForConsumer(consumer string) ([]*JwtCredential, error) {
+	statusCode, body, err := kongRequestDo(
+		http.MethodGet,
+		fmt.Sprintf("/consumers/%s/jwt", consumer),
+		nil,
+		"",
+	)
+	if err != nil {
+		return nil, err
+	}
+	if statusCode != 200 {
+		return nil, fmt.Errorf("list credential for %s error: %v", consumer, string(body))
+	}
+
+	var jwtCredentials JwtCredentials
+	err = json.Unmarshal(body, &jwtCredentials)
+	if err != nil {
+		return nil, err
+	}
+
+	return jwtCredentials.Data, nil
+}
+
+func createJwtCredentialForConsumer(consumer string) (*JwtCredential, error) {
+	statusCode, body, err := kongRequestDo(
+		http.MethodPost,
+		fmt.Sprintf("/consumers/%s/jwt", consumer),
+		nil,
+		fiber.MIMEApplicationForm,
+	)
+	if err != nil {
+		return nil, err
+	}
+	if statusCode == 404 {
+		err = createConsumer(consumer)
+		if err != nil {
+			return nil, err
+		}
+		return createJwtCredentialForConsumer(consumer)
+	} else if statusCode != 201 {
+		return nil, fmt.Errorf("create jwt credential for %s error: %v", consumer, string(body))
+	}
+	jwtCredential := new(JwtCredential)
+	err = json.Unmarshal(body, &jwtCredential)
+	if err != nil {
+		return nil, err
+	}
+	return jwtCredential, nil
+}
+
+func createConsumer(consumer string) error {
+	reqBodyObject := map[string]any{
+		"username": consumer,
+	}
+	reqData, err := json.Marshal(reqBodyObject)
+	if err != nil {
+		return err
+	}
+	statusCode, body, err := kongRequestDo(
+		http.MethodPut,
+		fmt.Sprintf("/consumers/%s", consumer),
+		bytes.NewReader(reqData),
+		fiber.MIMEApplicationJSON,
+	)
+	if err != nil {
+		return err
+	}
+	if !(statusCode == 200 || statusCode == 201) {
+		return fmt.Errorf("create consumer %s in kong error: %v", consumer, string(body))
+	}
+	return nil
+}
+
+func DeleteJwtCredentialForOpenclaw(ocID int) error {
+	consumer := openclawConsumer(ocID)
+	jwtCredentials, err := listJwtCredentialsForConsumer(consumer)
+	if err != nil {
+		return err
+	}
+	var delErr error
+	for i := range jwtCredentials {
+		innerErr := deleteJwtCredential(consumer, jwtCredentials[i].ID)
+		if innerErr != nil {
+			delErr = errors.Join(delErr, innerErr)
+		}
+	}
+	return delErr
+}
+
+func deleteJwtCredential(consumer, jwtID string) error {
+	statusCode, _, err := kongRequestDo(
+		http.MethodDelete,
+		fmt.Sprintf("/consumers/%s/jwt/%s", consumer, jwtID),
+		nil,
+		"",
+	)
+	if err != nil {
+		return err
+	}
+	if statusCode != 204 {
+		return fmt.Errorf("delete jwt credential %s for consumer %s error", jwtID, consumer)
+	}
+	return nil
+}

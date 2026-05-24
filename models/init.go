@@ -102,6 +102,7 @@ func initDB() {
 	// migrate database
 	err = DB.AutoMigrate(
 		User{},
+		Openclaw{},
 		ShamirEmail{},
 		ActiveStatus{},
 		DeleteIdentifier{},
@@ -116,7 +117,7 @@ func initDB() {
 		}
 	}
 	if config.Config.Standalone {
-		err = DB.AutoMigrate(UserJwtSecret{})
+		err = DB.AutoMigrate(UserJwtSecret{}, OpenclawJwtSecret{})
 		if err != nil {
 			log.Fatal().Err(err).Msg("auto migrate failed")
 		}

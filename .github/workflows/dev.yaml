@@ -1,7 +1,7 @@
 name: Dev Build
 on:
   push:
-    branches: [ dev ]
+    branches: [ dev, openclaw ]
 
 env:
   APP_NAME: auth_next

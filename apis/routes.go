@@ -55,6 +55,15 @@ func RegisterRoutes(app *fiber.App) {
 	routes.Put("/users/:id", ModifyUser)
 	routes.Patch("/users/:id<int>/_webvpn", ModifyUser)
 
+	// openclaw
+	routes.Post("/openclaw", CreateOpenclaw)
+	routes.Delete("/openclaw/:id", DeleteOpenclaw)
+	routes.Get("/openclaw", ListOpenclaw)
+
+	// validate
+	routes.Post("/validate/user", ValidateUserToken)
+	routes.Post("/validate/oc", ValidateOpenclawToken)
+
 	// shamir
 	routes.Get("/shamir/status", GetShamirStatus)
 	routes.Get("/shamir/:id", GetPGPMessageByUserID)
