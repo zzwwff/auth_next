@@ -104,3 +104,16 @@ func (user *User) CreateJWTToken() (accessToken, refreshToken string, err error)
 
 	return
 }
+
+func GetUserJwtSecret(userID int) (secret string, err error) {
+	if config.Config.Standalone {
+		var userJwtSecret UserJwtSecret
+		err = DB.Take(&userJwtSecret, userID).Error
+		if err != nil {
+			return "", err
+		}
+		return userJwtSecret.Secret, nil
+	}
+	_, secret, err = kong.GetJwtSecret(userID)
+	return secret, err
+}

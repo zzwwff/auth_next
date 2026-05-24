@@ -25,17 +25,36 @@ func ValidateUserToken(c *fiber.Ctx) error {
 		return common.Unauthorized("missing Bearer token")
 	}
 
-	var payload Map
-	err := common.ParseJWTToken(tokenString, &payload)
+	// parse unverified to get user ID
+	var claims UserClaims
+	parser := jwt.NewParser()
+	_, _, err := parser.ParseUnverified(tokenString, &claims)
 	if err != nil {
 		return common.Unauthorized("invalid token")
 	}
 
-	resp := ValidateUserResponse{
-		UserID: getInt(payload, "user_id"),
+	// look up secret
+	secret, err := GetUserJwtSecret(claims.ID)
+	if err != nil {
+		return common.Unauthorized("user not found")
 	}
 
-	return c.JSON(resp)
+	// verify token with secret
+	token, err := jwt.ParseWithClaims(tokenString, &UserClaims{}, func(token *jwt.Token) (interface{}, error) {
+		return []byte(secret), nil
+	})
+	if err != nil || !token.Valid {
+		return common.Unauthorized("invalid token")
+	}
+
+	verifiedClaims, ok := token.Claims.(*UserClaims)
+	if !ok {
+		return common.Unauthorized("invalid token claims")
+	}
+
+	return c.JSON(ValidateUserResponse{
+		UserID: verifiedClaims.UserID,
+	})
 }
 
 // ValidateOpenclawToken
@@ -106,15 +125,4 @@ func extractBearer(c *fiber.Ctx) string {
 	return strings.Trim(tokenString, " ")
 }
 
-func getInt(m map[string]any, key string) int {
-	if v, ok := m[key]; ok {
-		switch v := v.(type) {
-		case float64:
-			return int(v)
-		case int:
-			return v
-		}
-	}
-	return 0
-}
 
